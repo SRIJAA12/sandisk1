@@ -1,0 +1,103 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+*.pyc
+__pycache__/
+*.egg-info/
+dist/
+build/
+
+# Streamlit
+.streamlit/
+.streamlit/secrets.toml
+.streamlit/config.toml
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Python
+*.py[cod]
+*$py.class
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS
+Thumbs.db
+.DS_Store
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+*~
+
+# Data & Models
+*.pth
+*.pt
+*.weights
+*.h5
+*.model
+
+# Video & Media (optional - remove if you want to track these)
+*.mp4
+*.avi
+*.mov
+*.mkv
+output_video.*
+processed_video.*
+
+# Cache
+.pytest_cache/
+.mypy_cache/
+*.pyc
+__pycache__
+
+# Large files
+*.zip
+*.tar.gz
+*.rar
+
+# Dependencies lock file (optional)
+Pipfile.lock
+poetry.lock
+
+# Node modules (if using any frontend)
+node_modules/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Credentials and secrets
+secrets.json
+credentials.json
+config_local.py

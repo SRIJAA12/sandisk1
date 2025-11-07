@@ -1,0 +1,9 @@
+streamlit==1.39.0
+ultralytics
+opencv-python
+numpy
+pandas
+plotly
+scikit-image
+pillow
+tensorflow
