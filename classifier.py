@@ -110,16 +110,25 @@ def is_static_water(frame):
         return False, 0.0
 
 
-def classify_frame(frame, last_frame=None):
+def classify_frame(frame, last_frame=None, thresholds=None):
     """
-    Main classification function - FIXED VERSION
-    LESS AGGRESSIVE - saves more frames
+    Main classification function - CONFIGURABLE VERSION
+    Uses dynamic thresholds from sidebar
     """
     start_time = time.time()
     
-    # Stage 1: Duplicate check (VERY strict now)
+    # Use default thresholds if none provided
+    if thresholds is None:
+        thresholds = {
+            'yolo_confidence': 0.5,
+            'ssim_threshold': 0.97,
+            'sky_threshold': 0.8,
+            'edge_threshold': 0.01
+        }
+    
+    # Stage 1: Duplicate check (configurable threshold)
     if last_frame is not None:
-        is_dup, ssim_val = is_duplicate(frame, last_frame)
+        is_dup, ssim_val = is_duplicate(frame, last_frame, thresholds['ssim_threshold'])
         if is_dup:
             latency = time.time() - start_time
             return "Discard", 1.0, "duplicate_frame", ssim_val, latency

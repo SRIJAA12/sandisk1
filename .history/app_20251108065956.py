@@ -13,7 +13,7 @@ import os
 import time
 from datetime import datetime
 from classifier import classify_frame
-from ui_components import apply_custom_css, show_hero, get_category_badge, show_enhanced_video_comparison
+from ui_components import apply_custom_css, show_hero, get_category_badge
 from video_generator import create_video_from_frames
 from config import COLORS
 
@@ -25,100 +25,7 @@ st.set_page_config(
 )
 
 apply_custom_css()
-
-# BACK TO HOMEPAGE BUTTON
-st.markdown("""
-<div style="margin-bottom: 20px;">
-    <a href="/" target="_self" style="text-decoration: none;">
-        <button style="
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(78, 205, 196, 0.3);
-            color: #4ECDC4;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-        ">← Back to Homepage</button>
-    </a>
-</div>
-""", unsafe_allow_html=True)
-
 show_hero()
-
-# ============================================================================ #
-# SIDEBAR - THRESHOLD CONTROLS
-# ============================================================================ #
-st.sidebar.markdown("## 🎛️ AURA Configuration")
-st.sidebar.markdown("### Classification Thresholds")
-
-# YOLO Confidence Threshold
-yolo_threshold = st.sidebar.slider(
-    "🎯 YOLO Confidence Threshold",
-    min_value=0.1,
-    max_value=0.9,
-    value=0.5,
-    step=0.05,
-    help="Minimum confidence for object detection"
-)
-
-# SSIM Threshold for Duplicates
-ssim_threshold = st.sidebar.slider(
-    "🔍 Duplicate Detection (SSIM)",
-    min_value=0.85,
-    max_value=0.99,
-    value=0.97,
-    step=0.01,
-    help="Similarity threshold for duplicate frames"
-)
-
-# Sky Detection Threshold
-sky_threshold = st.sidebar.slider(
-    "🌌 Empty Sky Threshold",
-    min_value=0.6,
-    max_value=0.9,
-    value=0.8,
-    step=0.05,
-    help="Blue ratio threshold for sky detection"
-)
-
-# Edge Detection Threshold
-edge_threshold = st.sidebar.slider(
-    "📐 Edge Detection Threshold",
-    min_value=0.005,
-    max_value=0.05,
-    value=0.01,
-    step=0.005,
-    help="Edge ratio threshold for content detection"
-)
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📊 Current Settings")
-st.sidebar.info(f"""
-**YOLO Confidence:** {yolo_threshold:.2f}
-**SSIM Threshold:** {ssim_threshold:.2f}
-**Sky Threshold:** {sky_threshold:.2f}
-**Edge Threshold:** {edge_threshold:.3f}
-""")
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🎯 Category Mapping")
-st.sidebar.markdown("""
-- **🔴 Critical:** People, Animals
-- **🟡 Important:** Vehicles, Infrastructure  
-- **🟢 Normal:** Landscape, Objects
-- **⚫ Discard:** Duplicates, Empty Sky
-""")
-
-# Store thresholds in session state for use in classification
-if 'thresholds' not in st.session_state:
-    st.session_state.thresholds = {}
-
-st.session_state.thresholds = {
-    'yolo_confidence': yolo_threshold,
-    'ssim_threshold': ssim_threshold,
-    'sky_threshold': sky_threshold,
-    'edge_threshold': edge_threshold
-}
 
 tab1, tab2 = st.tabs(["📹 VIDEO ANALYSIS", "🖼️ IMAGE ANALYSIS"])
 
@@ -160,8 +67,11 @@ with tab1:
         info_cols[2].metric("Duration", f"{duration:.1f}s")
         info_cols[3].metric("Resolution", f"{width}×{height}")
 
-        # Process Video Button
-        if st.button("🎬 PROCESS VIDEO", type="primary", use_container_width=True):
+        if st.button("🚀 START ANALYSIS", type="primary", use_container_width=True):
+            st.markdown("---")
+            st.markdown("### ⏳ Processing Video Frames...")
+
+            frame_num = 0
             counts = {"Critical": 0, "Important": 0, "Normal": 0, "Discard": 0, "Duplicates": 0}
             results, saved_frames = [], []
             last_frame = None
@@ -175,32 +85,20 @@ with tab1:
 
             cap = cv2.VideoCapture(input_path)
             start_time = time.time()
-            frame_num = 0
 
-            # OPTIMIZED PROCESSING: Process every 2nd frame for speed while maintaining accuracy
-            skip_frames = 2  # Process every 2nd frame for faster processing
-            
             while True:
                 ret, frame = cap.read()
                 if not ret:
                     break
-                
-                frame_num += 1
-                
-                # Skip frames for speed optimization
-                if frame_num % skip_frames != 0:
-                    continue
-                    
                 progress_bar.progress(frame_num / total_frames, text=f"Processing {frame_num}/{total_frames}")
 
-                # Update display less frequently for better performance
-                if frame_num % 20 == 0:
+                if frame_num % 5 == 0:
                     try:
                         frame_display.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_column_width=True)
                     except:
                         pass
 
-                category, confidence, detected, metric, latency = classify_frame(frame, last_frame, st.session_state.thresholds)
+                category, confidence, detected, metric, latency = classify_frame(frame, last_frame)
                 if category == "Discard" and detected == "duplicate_frame":
                     counts["Duplicates"] += 1
                 counts[category] += 1
@@ -208,24 +106,24 @@ with tab1:
 
                 if category != "Discard":
                     saved_frames.append(frame.copy())
+                    cv2.imwrite(os.path.join(frames_dir, f"{frame_num:06d}_{category}.jpg"), frame)
 
-                # Update UI metrics less frequently for performance
-                if frame_num % 12 == 0:
-                    badge = get_category_badge(category)
-                    status_display.markdown(
-                        f"<div class='glass-card'><p><strong>Frame {frame_num}</strong> | {badge}</p>"
-                        f"<p>Object: <strong>{detected}</strong> | Confidence: {confidence:.0%} | Latency: {latency*1000:.1f}ms</p></div>",
-                        unsafe_allow_html=True,
-                    )
+                badge = get_category_badge(category)
+                status_display.markdown(
+                    f"<div class='glass-card'><p><strong>Frame {frame_num}</strong> | {badge}</p>"
+                    f"<p>Object: <strong>{detected}</strong> | Confidence: {confidence:.0%} | Latency: {latency*1000:.1f}ms</p></div>",
+                    unsafe_allow_html=True,
+                )
 
-                    saved = counts["Critical"] + counts["Important"] + counts["Normal"]
-                    reduction = (1 - saved / max(processed, 1)) * 100
-                    metric_p.metric("Processed", processed)
-                    metric_d.metric("Duplicates", counts["Duplicates"])
-                    metric_s.metric("Saved", saved)
-                    metric_r.metric("Reduction %", f"{reduction:.1f}%")
+                saved = counts["Critical"] + counts["Important"] + counts["Normal"]
+                reduction = (1 - saved / max(processed, 1)) * 100
+                metric_p.metric("Processed", processed)
+                metric_d.metric("Duplicates", counts["Duplicates"])
+                metric_s.metric("Saved", saved)
+                metric_r.metric("Reduction %", f"{reduction:.1f}%")
 
                 last_frame = frame.copy()
+                frame_num += 1
 
             cap.release()
             elapsed_time = time.time() - start_time
@@ -268,7 +166,7 @@ with tab1:
                 progress_vid = st.progress(0, text="Encoding...")
                 try:
                     success, message, frames_written = create_video_from_frames(
-                        saved_frames, output_path, fps, width, height, crf=18, preset="ultrafast"
+                        saved_frames, output_path, fps, width, height, crf=18, preset="medium"
                     )
                     progress_vid.progress(1.0, text="Done")
                     video_creation_status.success(message if success else f"❌ {message}")
@@ -278,73 +176,42 @@ with tab1:
                     video_creation_status.error(f"❌ Exception: {e}")
                     video_created = False
 
-            # ======================= ENHANCED VIDEO COMPARISON & ANALYSIS ====================== #
-            try:
-                original_size_mb = os.path.getsize(input_path) / (1024.0 * 1024.0)
-                optimized_size_mb = os.path.getsize(output_path) / (1024.0 * 1024.0) if video_created and os.path.exists(output_path) else 0
-                
-                # Show enhanced video comparison with integrated mathematical analysis
-                show_enhanced_video_comparison(
-                    input_path, output_path if video_created else None, 
-                    original_size_mb, optimized_size_mb, 
-                    total_frames, saved_frames
-                )
-                
-            except Exception as e:
-                st.error(f"Error in video comparison: {e}")
-                
-                # Fallback simple comparison
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown("### 📹 Original Video")
-                    st.video(input_path)
-                with col2:
-                    st.markdown("### 🧠 AURA Optimized")
-                    if video_created and os.path.exists(output_path):
-                        st.video(output_path)
-                    else:
-                        st.error("❌ Optimized video not available")
-
-            # ======================= DETAILED ANALYSIS ====================== #
+            # ======================= VIDEO DISPLAY (AUTOLOOP) ==================== #
             st.markdown("---")
-            st.markdown("### 📊 Performance Analysis")
-            
-            # Create metrics in a more organized layout
-            analysis_cols = st.columns(3)
-            
-            with analysis_cols[0]:
-                st.markdown("""
-                <div class='glass-card'>
-                    <h4>🎯 Frame Analysis</h4>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.metric("Total Processed", processed, f"{processed/elapsed_time:.1f} fps")
-                st.metric("Frames Saved", saved, f"{(saved/processed)*100:.1f}%")
-                st.metric("Duplicates Removed", counts["Duplicates"], f"{(counts['Duplicates']/processed)*100:.1f}%")
-            
-            with analysis_cols[1]:
-                st.markdown("""
-                <div class='glass-card'>
-                    <h4>💾 Storage Impact</h4>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.metric("Write Reduction", f"{reduction:.1f}%", "Target: 60-70%")
-                st.metric("Lifespan Extension", f"{lifespan_extension:.1f}x", "Target: 3-3.5x")
-                if 'storage_saved_gb' in locals():
-                    st.metric("Storage Saved", f"{storage_saved_gb:.2f} GB")
-            
-            with analysis_cols[2]:
-                st.markdown("""
-                <div class='glass-card'>
-                    <h4>🏷️ Classification</h4>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.metric("Critical Frames", counts["Critical"], "🔴 Full quality")
-                st.metric("Important Frames", counts["Important"], "🟡 70% quality") 
-                st.metric("Normal Frames", counts["Normal"], "🟢 50% quality")
+            st.markdown("### 🎥 Optimized Video Preview")
+
+            if video_created and os.path.exists(output_path):
+                try:
+                    import base64
+                    import streamlit.components.v1 as components
+                    with open(output_path, "rb") as f:
+                        data = base64.b64encode(f.read()).decode("utf-8")
+                    video_html = f"""
+                    <video controls autoplay loop muted playsinline
+                           style="width:100%;max-height:520px;border-radius:8px;
+                           box-shadow:0 6px 20px rgba(0,0,0,0.35);">
+                        <source src="data:video/mp4;base64,{data}" type="video/mp4">
+                    </video>"""
+                    components.html(video_html, height=520)
+                except Exception:
+                    st.video(output_path)
+            else:
+                st.error("Optimized video not available.")
+
+            # ======================= COMPARISON & ANALYSIS ====================== #
+            st.markdown("---")
+            st.markdown("### 📊 Comparison & Storage Analysis")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("#### Original Video")
+                st.video(input_path)
+            with col2:
+                st.markdown("#### Optimized Video (AURA)")
+                if video_created:
+                    st.video(output_path)
+
+            st.markdown(f"**Storage Saved:** {storage_saved_gb:.2f} GB ({reduction:.1f}%)")
 
 # ============================================================================ #
 # TAB 2: IMAGE ANALYSIS
@@ -368,7 +235,7 @@ with tab2:
                 with c1:
                     st.image(img_rgb, caption="Input Frame", use_column_width=True)
                 with c2:
-                    category, confidence, detected, metric, latency = classify_frame(img_bgr, None, st.session_state.thresholds)
+                    category, confidence, detected, metric, latency = classify_frame(img_bgr)
                     badge = get_category_badge(category)
                     st.markdown(
                         f"<div class='glass-card'><h4>Result</h4><p>{badge}</p>"
