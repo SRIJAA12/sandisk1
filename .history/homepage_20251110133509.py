@@ -47,9 +47,16 @@ with row1_col1:
     """, unsafe_allow_html=True)
 
     # Navigation link instead of st.switch_page to avoid session init error in some Streamlit versions
-    if st.button("Launch Module 1", key="launch_m1", use_container_width=True):
-        # Use switch_page for proper navigation
-        st.switch_page("pages/01__Module_1.py")
+    st.markdown(
+        """
+        <div style="margin-top:12px; text-align:center;">
+            <a href="/?page=pages/01__Module_1.py" target="_self" style="text-decoration:none;">
+                <button style="background: linear-gradient(135deg, #E31E24 0%, #8B0000 100%); color: white; border: none; padding: 12px 28px; font-size: 1rem; font-weight:700; border-radius: 40px;">Launch Module 1</button>
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 with row1_col2:
     st.markdown("""
@@ -64,8 +71,16 @@ with row1_col2:
     </div>
     """, unsafe_allow_html=True)
 
-    if st.button("Launch Module 2", key="launch_m2", use_container_width=True):
-        st.switch_page("pages/02__Module_2.py")
+    st.markdown(
+        """
+        <div style="margin-top:12px; text-align:center;">
+            <a href="/?page=pages/02__Module_2.py" target="_self" style="text-decoration:none;">
+                <button style="background: linear-gradient(135deg, #E31E24 0%, #8B0000 100%); color: white; border: none; padding: 12px 28px; font-size: 1rem; font-weight:700; border-radius: 40px;">Launch Module 2</button>
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # Second row: Module 3 and Module 4
 st.markdown("\n")
@@ -84,8 +99,16 @@ with row2_col1:
     </div>
     """, unsafe_allow_html=True)
 
-    if st.button("Launch Module 3", key="launch_m3", use_container_width=True):
-        st.switch_page("pages/03__Module_3.py")
+    st.markdown(
+        """
+        <div style="margin-top:12px; text-align:center;">
+            <a href="/?page=pages/02__Module_3.py" target="_self" style="text-decoration:none;">
+                <button style="background: linear-gradient(135deg, #E31E24 0%, #8B0000 100%); color: white; border: none; padding: 12px 28px; font-size: 1rem; font-weight:700; border-radius: 40px;">Launch Module 3</button>
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 with row2_col2:
     st.markdown("""
@@ -100,8 +123,16 @@ with row2_col2:
     </div>
     """, unsafe_allow_html=True)
 
-    if st.button("Launch Module 4", key="launch_m4", use_container_width=True):
-        st.switch_page("pages/04__Module_4.py")
+    st.markdown(
+        """
+        <div style="margin-top:12px; text-align:center;">
+            <a href="/?page=pages/04__Module_4.py" target="_self" style="text-decoration:none;">
+                <button style="background: linear-gradient(135deg, #E31E24 0%, #8B0000 100%); color: white; border: none; padding: 12px 28px; font-size: 1rem; font-weight:700; border-radius: 40px;">Launch Module 4</button>
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # ADDITIONAL CSS FOR MODULE CARDS
 st.markdown("""

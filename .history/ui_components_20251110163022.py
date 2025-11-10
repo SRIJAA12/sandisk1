@@ -790,20 +790,19 @@ def show_enhanced_video_comparison(input_path, output_path, original_size_mb, op
     st.markdown("### Video Comparison & Mathematical Analysis")
     
     # Calculate metrics for mathematical analysis
-    processed = total_frames
-    # saved_frames may be a list of frames, a list of file paths, or an integer count
-    if isinstance(saved_frames, int):
-        saved = saved_frames
-    else:
-        try:
-            saved = len(saved_frames)
-        except Exception:
-            # Fallback: try to coerce to int
-            try:
-                saved = int(saved_frames)
-            except Exception:
-                saved = 0
-
+  processed = total_frames
+  # saved_frames may be a list of frames, a list of file paths, or an integer count
+  if isinstance(saved_frames, int):
+    saved = saved_frames
+  else:
+    try:
+      saved = len(saved_frames)
+    except Exception:
+      # Fallback: try to coerce to int
+      try:
+        saved = int(saved_frames)
+      except Exception:
+        saved = 0
     reduction = ((processed - saved) / processed) * 100 if processed > 0 else 0
     lifespan_extension = 100 / (100 - reduction) if reduction < 100 else 999
     storage_saved_gb = (original_size_mb - optimized_size_mb) / 1024
@@ -872,10 +871,10 @@ def show_enhanced_video_comparison(input_path, output_path, original_size_mb, op
                         <span class="stat-label">Size</span>
                         <span class="stat-value green">{optimized_size_mb:.1f} MB</span>
                     </div>
-          <div class="stat-item">
-            <span class="stat-label">Frames</span>
-            <span class="stat-value green">{saved}</span>
-          </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Frames</span>
+                        <span class="stat-value green">{len(saved_frames)}</span>
+                    </div>
                     <div class="stat-item">
                         <span class="stat-label">Quality</span>
                         <span class="stat-value">Preserved</span>

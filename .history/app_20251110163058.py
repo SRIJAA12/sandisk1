@@ -18,8 +18,9 @@ from video_generator import create_video_from_frames, create_video_from_frame_fi
 from config import COLORS
 
 # PAGE CONFIG
+# Note: Max upload size is configured to 800MB in .streamlit/config.toml
 st.set_page_config(
-    page_title="AURA Module 1",
+    page_title="AURA - Adaptive Unified Resource Architecture For Edge Storage",
     layout="wide"
 )
 
@@ -161,10 +162,10 @@ with tab1:
 
         # Process Video Button
         if st.button("🎬 PROCESS VIDEO", type="primary", use_container_width=True):
-            counts = {"Critical": 0, "Important": 0, "Normal": 0, "Discard": 0, "Duplicates": 0}
-            results = []
-            saved_frames = []
-            saved_frame_paths = []
+                counts = {"Critical": 0, "Important": 0, "Normal": 0, "Discard": 0, "Duplicates": 0}
+                results = []
+                saved_frames = []  # kept for small demos; primarily we'll save to disk
+                saved_frame_paths = []
             last_frame = None
             processed = 0
 
@@ -197,7 +198,7 @@ with tab1:
                 # Update display less frequently for better performance
                 if frame_num % 20 == 0:
                     try:
-                        frame_display.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_container_width=True)
+                        frame_display.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_column_width=True)
                     except:
                         pass
 
@@ -208,15 +209,18 @@ with tab1:
                 processed += 1
 
                 if category != "Discard":
+                    # Save frame to disk to avoid holding large lists in memory
                     try:
                         frame_id = len(saved_frame_paths)
                         frame_path = os.path.join(frames_dir, f"frame_{frame_id:06d}.png")
                         import cv2
                         cv2.imwrite(frame_path, frame)
                         saved_frame_paths.append(frame_path)
+                        # keep a small in-memory sample for quick preview (optional)
                         if len(saved_frames) < 5:
                             saved_frames.append(frame.copy())
-                    except Exception:
+                    except Exception as e:
+                        # fallback to in-memory if disk write fails
                         saved_frames.append(frame.copy())
 
                 # Update UI metrics less frequently for performance
@@ -228,7 +232,7 @@ with tab1:
                         unsafe_allow_html=True,
                     )
 
-                    saved = counts["Critical"] + counts["Important"] + counts["Normal"]
+                        saved = counts["Critical"] + counts["Important"] + counts["Normal"]
                     reduction = (1 - saved / max(processed, 1)) * 100
                     metric_p.metric("Processed", processed)
                     metric_d.metric("Duplicates", counts["Duplicates"])
@@ -278,6 +282,7 @@ with tab1:
                 )
                 progress_vid = st.progress(0, text="Encoding...")
                 try:
+                    # Prefer file-based creation if frames were saved to disk
                     if saved_frame_paths:
                         success, message, frames_written = create_video_from_frame_files(
                             frames_dir, output_path, fps, width, height, crf=18, preset="ultrafast"
@@ -382,7 +387,7 @@ with tab2:
             if st.button("🔍 ANALYZE IMAGE", type="primary", use_container_width=True, key="analyze_image"):
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.image(img_rgb, caption="Input Frame", use_container_width=True)
+                    st.image(img_rgb, caption="Input Frame", use_column_width=True)
                 with c2:
                     category, confidence, detected, metric, latency = classify_frame(img_bgr, None, st.session_state.thresholds)
                     badge = get_category_badge(category)
@@ -399,7 +404,7 @@ with tab2:
 st.markdown("---")
 st.markdown("""
 <div style="text-align:center;color:rgba(255,255,255,0.5);font-size:0.85rem;margin-top:40px;">
-<p><b>🧠 AURA Module 1 | Intelligent Data Manager</b></p>
+<p><b>AURA | Intelligent Data Manager</b></p>
 <p>Advanced Storage Optimization for Edge Devices</p>
 <p>© 2025 Team AURA | PSG Institute of Technology | Cerebrum 2025 Finals</p>
 <p>Partner: SanDisk</p>

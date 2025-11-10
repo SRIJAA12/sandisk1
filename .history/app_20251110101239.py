@@ -14,12 +14,13 @@ import time
 from datetime import datetime
 from classifier import classify_frame
 from ui_components import apply_custom_css, show_hero, get_category_badge, show_enhanced_video_comparison
-from video_generator import create_video_from_frames, create_video_from_frame_files
+from video_generator import create_video_from_frames
 from config import COLORS
 
 # PAGE CONFIG
+# Note: Max upload size is configured to 800MB in .streamlit/config.toml
 st.set_page_config(
-    page_title="AURA Module 1",
+    page_title="AURA - Adaptive Unified Resource Architecture For Edge Storage",
     layout="wide"
 )
 
@@ -162,9 +163,7 @@ with tab1:
         # Process Video Button
         if st.button("🎬 PROCESS VIDEO", type="primary", use_container_width=True):
             counts = {"Critical": 0, "Important": 0, "Normal": 0, "Discard": 0, "Duplicates": 0}
-            results = []
-            saved_frames = []
-            saved_frame_paths = []
+            results, saved_frames = [], []
             last_frame = None
             processed = 0
 
@@ -197,7 +196,7 @@ with tab1:
                 # Update display less frequently for better performance
                 if frame_num % 20 == 0:
                     try:
-                        frame_display.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_container_width=True)
+                        frame_display.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_column_width=True)
                     except:
                         pass
 
@@ -208,16 +207,7 @@ with tab1:
                 processed += 1
 
                 if category != "Discard":
-                    try:
-                        frame_id = len(saved_frame_paths)
-                        frame_path = os.path.join(frames_dir, f"frame_{frame_id:06d}.png")
-                        import cv2
-                        cv2.imwrite(frame_path, frame)
-                        saved_frame_paths.append(frame_path)
-                        if len(saved_frames) < 5:
-                            saved_frames.append(frame.copy())
-                    except Exception:
-                        saved_frames.append(frame.copy())
+                    saved_frames.append(frame.copy())
 
                 # Update UI metrics less frequently for performance
                 if frame_num % 12 == 0:
@@ -265,8 +255,7 @@ with tab1:
             video_creation_status = st.empty()
             video_creation_status.info("⏳ Preparing video creation...")
 
-            total_saved = len(saved_frame_paths) if saved_frame_paths else len(saved_frames)
-            if total_saved == 0:
+            if len(saved_frames) == 0:
                 video_creation_status.error("❌ No frames to save!")
                 video_created = False
             else:
@@ -278,14 +267,9 @@ with tab1:
                 )
                 progress_vid = st.progress(0, text="Encoding...")
                 try:
-                    if saved_frame_paths:
-                        success, message, frames_written = create_video_from_frame_files(
-                            frames_dir, output_path, fps, width, height, crf=18, preset="ultrafast"
-                        )
-                    else:
-                        success, message, frames_written = create_video_from_frames(
-                            saved_frames, output_path, fps, width, height, crf=18, preset="ultrafast"
-                        )
+                    success, message, frames_written = create_video_from_frames(
+                        saved_frames, output_path, fps, width, height, crf=18, preset="ultrafast"
+                    )
                     progress_vid.progress(1.0, text="Done")
                     video_creation_status.success(message if success else f"❌ {message}")
                     video_created = success
@@ -303,7 +287,7 @@ with tab1:
                 show_enhanced_video_comparison(
                     input_path, output_path if video_created else None, 
                     original_size_mb, optimized_size_mb, 
-                    total_frames, total_saved
+                    total_frames, saved_frames
                 )
                 
             except Exception as e:
@@ -382,7 +366,7 @@ with tab2:
             if st.button("🔍 ANALYZE IMAGE", type="primary", use_container_width=True, key="analyze_image"):
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.image(img_rgb, caption="Input Frame", use_container_width=True)
+                    st.image(img_rgb, caption="Input Frame", use_column_width=True)
                 with c2:
                     category, confidence, detected, metric, latency = classify_frame(img_bgr, None, st.session_state.thresholds)
                     badge = get_category_badge(category)
@@ -399,7 +383,7 @@ with tab2:
 st.markdown("---")
 st.markdown("""
 <div style="text-align:center;color:rgba(255,255,255,0.5);font-size:0.85rem;margin-top:40px;">
-<p><b>🧠 AURA Module 1 | Intelligent Data Manager</b></p>
+<p><b>AURA | Intelligent Data Manager</b></p>
 <p>Advanced Storage Optimization for Edge Devices</p>
 <p>© 2025 Team AURA | PSG Institute of Technology | Cerebrum 2025 Finals</p>
 <p>Partner: SanDisk</p>

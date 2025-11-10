@@ -197,7 +197,7 @@ with tab1:
                 # Update display less frequently for better performance
                 if frame_num % 20 == 0:
                     try:
-                        frame_display.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_container_width=True)
+                        frame_display.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_column_width=True)
                     except:
                         pass
 
@@ -382,7 +382,7 @@ with tab2:
             if st.button("🔍 ANALYZE IMAGE", type="primary", use_container_width=True, key="analyze_image"):
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.image(img_rgb, caption="Input Frame", use_container_width=True)
+                    st.image(img_rgb, caption="Input Frame", use_column_width=True)
                 with c2:
                     category, confidence, detected, metric, latency = classify_frame(img_bgr, None, st.session_state.thresholds)
                     badge = get_category_badge(category)

@@ -48,8 +48,9 @@ with row1_col1:
 
     # Navigation link instead of st.switch_page to avoid session init error in some Streamlit versions
     if st.button("Launch Module 1", key="launch_m1", use_container_width=True):
-        # Use switch_page for proper navigation
-        st.switch_page("pages/01__Module_1.py")
+        # Use query params to navigate to the pages entry (avoids st.switch_page timing issues)
+        st.experimental_set_query_params(page="pages/01__Module_1.py")
+        st.experimental_rerun()
 
 with row1_col2:
     st.markdown("""
@@ -65,7 +66,8 @@ with row1_col2:
     """, unsafe_allow_html=True)
 
     if st.button("Launch Module 2", key="launch_m2", use_container_width=True):
-        st.switch_page("pages/02__Module_2.py")
+        st.experimental_set_query_params(page="pages/02__Module_2.py")
+        st.experimental_rerun()
 
 # Second row: Module 3 and Module 4
 st.markdown("\n")
@@ -85,7 +87,8 @@ with row2_col1:
     """, unsafe_allow_html=True)
 
     if st.button("Launch Module 3", key="launch_m3", use_container_width=True):
-        st.switch_page("pages/03__Module_3.py")
+        st.experimental_set_query_params(page="pages/02__Module_3.py")
+        st.experimental_rerun()
 
 with row2_col2:
     st.markdown("""
@@ -101,7 +104,8 @@ with row2_col2:
     """, unsafe_allow_html=True)
 
     if st.button("Launch Module 4", key="launch_m4", use_container_width=True):
-        st.switch_page("pages/04__Module_4.py")
+        st.experimental_set_query_params(page="pages/04__Module_4.py")
+        st.experimental_rerun()
 
 # ADDITIONAL CSS FOR MODULE CARDS
 st.markdown("""

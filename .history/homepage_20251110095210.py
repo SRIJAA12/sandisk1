@@ -46,9 +46,7 @@ with row1_col1:
     </div>
     """, unsafe_allow_html=True)
 
-    # Navigation link instead of st.switch_page to avoid session init error in some Streamlit versions
-    if st.button("Launch Module 1", key="launch_m1", use_container_width=True):
-        # Use switch_page for proper navigation
+    if st.button("Launch Module 1", key="launch_m1", type="primary", use_container_width=True):
         st.switch_page("pages/01__Module_1.py")
 
 with row1_col2:
@@ -64,7 +62,7 @@ with row1_col2:
     </div>
     """, unsafe_allow_html=True)
 
-    if st.button("Launch Module 2", key="launch_m2", use_container_width=True):
+    if st.button("Launch Module 2", key="launch_m2", type="primary", use_container_width=True):
         st.switch_page("pages/02__Module_2.py")
 
 # Second row: Module 3 and Module 4
@@ -84,8 +82,8 @@ with row2_col1:
     </div>
     """, unsafe_allow_html=True)
 
-    if st.button("Launch Module 3", key="launch_m3", use_container_width=True):
-        st.switch_page("pages/03__Module_3.py")
+    if st.button("Launch Module 3", key="launch_m3", type="primary", use_container_width=True):
+        st.switch_page("pages/02__Module_3.py")
 
 with row2_col2:
     st.markdown("""
@@ -100,7 +98,7 @@ with row2_col2:
     </div>
     """, unsafe_allow_html=True)
 
-    if st.button("Launch Module 4", key="launch_m4", use_container_width=True):
+    if st.button("Launch Module 4", key="launch_m4", type="primary", use_container_width=True):
         st.switch_page("pages/04__Module_4.py")
 
 # ADDITIONAL CSS FOR MODULE CARDS

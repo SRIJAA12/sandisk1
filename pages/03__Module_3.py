@@ -470,7 +470,7 @@ with tab3:
                     from PIL import Image
                     import io
                     img = Image.open(io.BytesIO(first_frame))
-                    st.image(img, use_column_width=True)
+                    st.image(img, use_container_width=True)
                 
                 file_hash = processor.get_file_hash()
                 st.write(f"**File Hash (SHA-256):** `{file_hash}`")

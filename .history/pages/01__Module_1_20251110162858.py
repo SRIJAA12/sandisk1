@@ -14,7 +14,7 @@ import time
 from datetime import datetime
 from classifier import classify_frame
 from ui_components import apply_custom_css, show_hero, get_category_badge, show_enhanced_video_comparison
-from video_generator import create_video_from_frames, create_video_from_frame_files
+from video_generator import create_video_from_frames
 from config import COLORS
 
 # PAGE CONFIG
@@ -197,7 +197,7 @@ with tab1:
                 # Update display less frequently for better performance
                 if frame_num % 20 == 0:
                     try:
-                        frame_display.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_container_width=True)
+                        frame_display.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_column_width=True)
                     except:
                         pass
 
@@ -303,7 +303,7 @@ with tab1:
                 show_enhanced_video_comparison(
                     input_path, output_path if video_created else None, 
                     original_size_mb, optimized_size_mb, 
-                    total_frames, total_saved
+                    total_frames, saved_frames
                 )
                 
             except Exception as e:
@@ -382,7 +382,7 @@ with tab2:
             if st.button("🔍 ANALYZE IMAGE", type="primary", use_container_width=True, key="analyze_image"):
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.image(img_rgb, caption="Input Frame", use_container_width=True)
+                    st.image(img_rgb, caption="Input Frame", use_column_width=True)
                 with c2:
                     category, confidence, detected, metric, latency = classify_frame(img_bgr, None, st.session_state.thresholds)
                     badge = get_category_badge(category)

@@ -29,10 +29,21 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # BACK TO HOMEPAGE BUTTON (use anchor link to avoid switch_page session issues)
-if st.button("← Back to Homepage", key="back_home", use_container_width=True):
-    # Use query params to return to the homepage (clear page param)
-    st.experimental_set_query_params()
-    st.experimental_rerun()
+st.markdown("""
+<div style="margin-bottom: 20px;">
+    <a href="/" target="_self" style="text-decoration: none;">
+        <button style="
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(78, 205, 196, 0.3);
+            color: #4ECDC4;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        ">← Back to Homepage</button>
+    </a>
+</div>
+""", unsafe_allow_html=True)
 
 st.markdown(
     '<div class="glass-card"><h3>🔒 Module 3: Distributed Security Layer</h3><p>This simulation demonstrates how AURA protects data by splitting it into mathematical fragments. Stealing one or two devices is useless.</p></div>',
