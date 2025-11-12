@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from ui_components import apply_custom_css, show_hero
+from global_status import show_global_processing_status
 import numpy as np
 import time
 
@@ -17,6 +18,9 @@ st.set_page_config(
 )
 apply_custom_css()
 show_hero()
+
+# Show Module 1 processing status in sidebar
+show_global_processing_status()
 
 # --- Power State Definitions (from module4.docx) ---
 POWER_STATES = {

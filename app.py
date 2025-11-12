@@ -179,8 +179,9 @@ with tab1:
             start_time = time.time()
             frame_num = 0
 
-            # OPTIMIZED PROCESSING: Process every 2nd frame for speed while maintaining accuracy
-            skip_frames = 2  # Process every 2nd frame for faster processing
+            # OPTIMIZED PROCESSING: Smart frame sampling for speed while maintaining accuracy
+            skip_frames = max(1, total_frames // 500)  # Process max 500 frames for large videos
+            display_update_freq = max(1, skip_frames // 2)  # Show frames more frequently
             
             while True:
                 ret, frame = cap.read()
@@ -195,11 +196,13 @@ with tab1:
                     
                 progress_bar.progress(frame_num / total_frames, text=f"Processing {frame_num}/{total_frames}")
 
-                # Update display less frequently for better performance
-                if frame_num % 20 == 0:
+                # Update frame display more frequently to show real-time analysis
+                if processed % display_update_freq == 0:
                     try:
-                        frame_display.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_container_width=True)
-                    except:
+                        # Convert BGR to RGB for proper display
+                        display_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        frame_display.image(display_frame, caption=f"Analyzing Frame {frame_num}", use_container_width=True)
+                    except Exception as e:
                         pass
 
                 category, confidence, detected, metric, latency = classify_frame(frame, last_frame, st.session_state.thresholds)
@@ -223,12 +226,16 @@ with tab1:
                         # fallback to in-memory if disk write fails
                         saved_frames.append(frame.copy())
 
-                # Update UI metrics less frequently for performance
-                if frame_num % 12 == 0:
+                # Update UI metrics and status more frequently for better user feedback
+                if processed % max(1, display_update_freq) == 0:
                     badge = get_category_badge(category)
                     status_display.markdown(
-                        f"<div class='glass-card'><p><strong>Frame {frame_num}</strong> | {badge}</p>"
-                        f"<p>Object: <strong>{detected}</strong> | Confidence: {confidence:.0%} | Latency: {latency*1000:.1f}ms</p></div>",
+                        f"<div class='glass-card'>"
+                        f"<p><strong>Frame {frame_num}</strong> | {badge}</p>"
+                        f"<p>📊 Object: <strong>{detected}</strong></p>"
+                        f"<p>🎯 Confidence: <strong>{confidence:.0%}</strong> | ⚡ Speed: <strong>{latency*1000:.1f}ms</strong></p>"
+                        f"<p>🔄 Status: <strong>Processing...</strong></p>"
+                        f"</div>",
                         unsafe_allow_html=True,
                     )
 

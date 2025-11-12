@@ -94,8 +94,8 @@ def create_video_with_ffmpeg(frames_list, output_path, fps, width, height, crf=1
             "-i", frame_pattern,
             "-c:v", "libx264",
             "-pix_fmt", "yuv420p",  # Ensures compatibility
-            "-crf", str(crf),
-            "-preset", preset,
+            "-crf", str(min(crf, 23)),  # Cap CRF for speed
+            "-preset", "ultrafast",  # Always use fastest preset
             "-movflags", "+faststart",  # Optimize for web playback
             "-vf", f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2",
             output_path
@@ -251,7 +251,7 @@ def create_video_from_frames(frames_list, output_path, fps, width, height, crf=1
     return False, f"All methods failed - OpenCV: {opencv_error} | FFmpeg: {ffmpeg_error}", 0
 
 
-def create_video_from_frame_files(frames_dir, output_path, fps, width, height, crf=18, preset="ultrafast"):
+def create_video_from_frame_files(frames_dir, output_path, fps, width, height, crf=23, preset="ultrafast"):
     """
     Create a video from an existing directory of frame image files named frame_000000.png/jpg
     Uses FFmpeg directly and avoids loading all frames into memory in Python.
@@ -286,8 +286,8 @@ def create_video_from_frame_files(frames_dir, output_path, fps, width, height, c
             "-i", os.path.join(frames_dir, "frame_%06d.png"),
             "-c:v", "libx264",
             "-pix_fmt", "yuv420p",
-            "-crf", str(crf),
-            "-preset", preset,
+            "-crf", str(min(crf, 23)),  # Cap CRF for speed
+            "-preset", "ultrafast",  # Always use fastest preset
             "-movflags", "+faststart",
             "-vf", f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2",
             output_path

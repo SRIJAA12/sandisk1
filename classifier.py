@@ -18,29 +18,35 @@ except Exception as e:
     print(f"Warning: Could not load YOLO model: {e}")
     model = None
 
-def is_duplicate(frame1, frame2, threshold=0.97):  # RELAXED: was 0.93, now 0.97
+# Global cache for performance optimization
+_frame_cache = {}
+_cache_counter = 0
+
+def is_duplicate(frame1, frame2, threshold=0.97, frame_counter=None):  # RELAXED: was 0.93, now 0.97
     """
     Detect ONLY truly duplicate frames using SSIM
     More conservative to avoid discarding good frames
+    OPTIMIZED: Skip expensive checks for performance
     """
+    global _cache_counter
+    
     if frame1 is None or frame2 is None:
         return False, 0.0
     
+    # PERFORMANCE OPTIMIZATION: Skip duplicate detection every few frames
+    _cache_counter += 1
+    if _cache_counter % 5 != 0:  # Only check every 5th frame for duplicates (more aggressive)
+        return False, 0.0
+    
     try:
-        # Only check every few frames for duplicates
-        gray1 = cv2.cvtColor(cv2.resize(frame1, (64, 64)), cv2.COLOR_BGR2GRAY)
-        gray2 = cv2.cvtColor(cv2.resize(frame2, (64, 64)), cv2.COLOR_BGR2GRAY)
+        # Even smaller resize for faster processing
+        gray1 = cv2.cvtColor(cv2.resize(frame1, (24, 24)), cv2.COLOR_BGR2GRAY)
+        gray2 = cv2.cvtColor(cv2.resize(frame2, (24, 24)), cv2.COLOR_BGR2GRAY)
         
         similarity, _ = ssim(gray1, gray2, full=True)
         
-        # More strict: require near-perfect match AND low motion
-        flow = cv2.calcOpticalFlowFarneback(gray1, gray2, None, 0.5, 3, 15, 3, 5, 1.2, 0)
-        flow_magnitude = np.mean(np.sqrt(flow[..., 0]**2 + flow[..., 1]**2))
-        
-        # BOTH conditions must be true:
-        # 1. Frames are 97%+ identical (was 93%)
-        # 2. Optical flow is minimal
-        is_dup = similarity > threshold and flow_magnitude < 1.0  # was 0.5, now 1.0
+        # Skip expensive optical flow for performance - use simple similarity
+        is_dup = similarity > threshold
         
         return is_dup, float(similarity)
     
@@ -52,9 +58,10 @@ def is_empty_sky(frame):
     """
     Detect empty sky - but be VERY conservative
     Only discard if CLEARLY empty
+    OPTIMIZED: Smaller resize for speed
     """
     try:
-        small = cv2.resize(frame, (64, 64))
+        small = cv2.resize(frame, (24, 24))  # Even smaller for speed
         hsv = cv2.cvtColor(small, cv2.COLOR_BGR2HSV)
         
         # Blue sky detection (relaxed thresholds)
@@ -88,9 +95,10 @@ def is_empty_sky(frame):
 def is_static_water(frame):
     """
     Detect static water surfaces - VERY conservative
+    OPTIMIZED: Smaller resize for speed
     """
     try:
-        small = cv2.resize(frame, (64, 64))
+        small = cv2.resize(frame, (24, 24))  # Even smaller for speed
         hsv = cv2.cvtColor(small, cv2.COLOR_BGR2HSV)
         
         # Water color ranges (blue-green spectrum)
@@ -145,14 +153,23 @@ def classify_frame(frame, last_frame=None, thresholds=None):
         latency = time.time() - start_time
         return "Discard", 0.99, "static_water", water_ratio, latency
     
-    # Stage 4: YOLO object detection
+    # Stage 4: YOLO object detection (OPTIMIZED)
     try:
         if model is None:
             # If YOLO not available, save as Normal
             latency = time.time() - start_time
             return "Normal", 0.8, "no_model", 0.0, latency
         
-        results = model(frame, verbose=False)
+        # PERFORMANCE: Resize frame for faster YOLO processing
+        h, w = frame.shape[:2]
+        if w > 640:  # Only resize if frame is large
+            scale = 640 / w
+            new_w, new_h = int(w * scale), int(h * scale)
+            yolo_frame = cv2.resize(frame, (new_w, new_h))
+        else:
+            yolo_frame = frame
+            
+        results = model(yolo_frame, verbose=False, imgsz=256)  # Even smaller model size for speed
         
         detected_objects = []
         for result in results:
@@ -160,8 +177,8 @@ def classify_frame(frame, last_frame=None, thresholds=None):
                 class_name = result.names[int(box.cls)]
                 confidence = float(box.conf)
                 
-                # Only consider detections with >50% confidence
-                if confidence > 0.5:
+                # Use configurable confidence threshold
+                if confidence > thresholds.get('yolo_confidence', 0.5):
                     detected_objects.append((class_name, confidence))
         
         # No objects detected = Still save as Normal (not Discard!)

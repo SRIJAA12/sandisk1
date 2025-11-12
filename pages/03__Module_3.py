@@ -15,6 +15,7 @@ from modules.encryption import AESEncryption
 from modules.shamir import ShamirSecretSharing, split_bytes_into_shards, reconstruct_bytes_from_shards
 from modules.video_processor import DroneVideoProcessor
 from modules.visualizer import plot_polynomial, create_shard_distribution_chart
+from global_status import show_global_processing_status
 
 # ============================================================================
 # STREAMLIT PAGE CONFIG
@@ -26,6 +27,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Show Module 1 processing status in sidebar
+show_global_processing_status()
 
 # BACK TO HOMEPAGE BUTTON
 st.markdown("""

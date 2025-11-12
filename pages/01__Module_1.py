@@ -16,6 +16,10 @@ from classifier import classify_frame
 from ui_components import apply_custom_css, show_hero, get_category_badge, show_enhanced_video_comparison
 from video_generator import create_video_from_frames, create_video_from_frame_files
 from config import COLORS
+from background_processor import (
+    init_background_state, get_background_status, start_background_processing,
+    stop_background_processing, update_background_state
+)
 
 # PAGE CONFIG
 st.set_page_config(
@@ -112,6 +116,14 @@ st.sidebar.markdown("""
 if 'thresholds' not in st.session_state:
     st.session_state.thresholds = {}
 
+# Initialize background processing state
+init_background_state()
+
+# Auto-refresh every 2 seconds if processing is active
+if st.session_state.get('bg_processor_active', False):
+    time.sleep(0.1)  # Small delay to prevent excessive CPU usage
+    st.rerun()
+
 st.session_state.thresholds = {
     'yolo_confidence': yolo_threshold,
     'ssim_threshold': ssim_threshold,
@@ -159,208 +171,186 @@ with tab1:
         info_cols[2].metric("Duration", f"{duration:.1f}s")
         info_cols[3].metric("Resolution", f"{width}×{height}")
 
-        # Process Video Button
-        if st.button("🎬 PROCESS VIDEO", type="primary", use_container_width=True):
-            counts = {"Critical": 0, "Important": 0, "Normal": 0, "Discard": 0, "Duplicates": 0}
-            results = []
-            saved_frames = []
-            saved_frame_paths = []
-            last_frame = None
-            processed = 0
-
-            progress_bar = st.progress(0, text="Starting...")
-            display_col1, display_col2 = st.columns(2)
-            frame_display, status_display = display_col1.empty(), display_col2.empty()
-            metrics = st.columns(4)
-            metric_p, metric_d, metric_s, metric_r = [m.empty() for m in metrics]
-
-            cap = cv2.VideoCapture(input_path)
-            start_time = time.time()
-            frame_num = 0
-
-            # OPTIMIZED PROCESSING: Process every 2nd frame for speed while maintaining accuracy
-            skip_frames = 2  # Process every 2nd frame for faster processing
-            
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                
-                frame_num += 1
-                
-                # Skip frames for speed optimization
-                if frame_num % skip_frames != 0:
-                    continue
-                    
-                progress_bar.progress(frame_num / total_frames, text=f"Processing {frame_num}/{total_frames}")
-
-                # Update display less frequently for better performance
-                if frame_num % 20 == 0:
-                    try:
-                        frame_display.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_container_width=True)
-                    except:
-                        pass
-
-                category, confidence, detected, metric, latency = classify_frame(frame, last_frame, st.session_state.thresholds)
-                if category == "Discard" and detected == "duplicate_frame":
-                    counts["Duplicates"] += 1
-                counts[category] += 1
-                processed += 1
-
-                if category != "Discard":
-                    try:
-                        frame_id = len(saved_frame_paths)
-                        frame_path = os.path.join(frames_dir, f"frame_{frame_id:06d}.png")
-                        import cv2
-                        cv2.imwrite(frame_path, frame)
-                        saved_frame_paths.append(frame_path)
-                        if len(saved_frames) < 5:
-                            saved_frames.append(frame.copy())
-                    except Exception:
-                        saved_frames.append(frame.copy())
-
-                # Update UI metrics less frequently for performance
-                if frame_num % 12 == 0:
-                    badge = get_category_badge(category)
-                    status_display.markdown(
-                        f"<div class='glass-card'><p><strong>Frame {frame_num}</strong> | {badge}</p>"
-                        f"<p>Object: <strong>{detected}</strong> | Confidence: {confidence:.0%} | Latency: {latency*1000:.1f}ms</p></div>",
-                        unsafe_allow_html=True,
-                    )
-
-                    saved = counts["Critical"] + counts["Important"] + counts["Normal"]
-                    reduction = (1 - saved / max(processed, 1)) * 100
-                    metric_p.metric("Processed", processed)
-                    metric_d.metric("Duplicates", counts["Duplicates"])
-                    metric_s.metric("Saved", saved)
-                    metric_r.metric("Reduction %", f"{reduction:.1f}%")
-
-                last_frame = frame.copy()
-
-            cap.release()
-            elapsed_time = time.time() - start_time
-
-            # ============================= RESULTS ============================= #
-            st.markdown("---")
-            st.markdown("### ✅ Analysis Complete!")
-
-            saved = counts["Critical"] + counts["Important"] + counts["Normal"]
-            reduction = (1 - saved / processed) * 100 if processed > 0 else 0
-            lifespan_extension = 100 / (100 - reduction) if reduction < 100 else 999
-            original_size_gb = processed * 3.5 / 1000
-            optimized_size_gb = saved * 3.5 / 1000
-            storage_saved_gb = original_size_gb - optimized_size_gb
-
-            fm = st.columns(5)
-            fm[0].metric("Total Processed", processed, f"{processed/elapsed_time:.1f} fps")
-            fm[1].metric("Frames Saved", saved, f"{saved/processed*100:.1f}%")
-            fm[2].metric("Duplicates", counts["Duplicates"], f"{counts['Duplicates']/processed*100:.1f}%")
-            fm[3].metric("Write Reduction", f"{reduction:.1f}%", "Lower is better")
-            fm[4].metric("Lifespan Extension", f"{lifespan_extension:.1f}x", "Higher is better")
-
-            # ========================== VIDEO CREATION ========================== #
-            st.markdown("---")
-            st.markdown("### 🎬 Creating Optimized Video (AURA MP4, H.264 CRF18)...")
-
-            video_creation_status = st.empty()
-            video_creation_status.info("⏳ Preparing video creation...")
-
-            total_saved = len(saved_frame_paths) if saved_frame_paths else len(saved_frames)
-            if total_saved == 0:
-                video_creation_status.error("❌ No frames to save!")
-                video_created = False
+        # Background processing status and controls
+        bg_status = get_background_status()
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if not bg_status['active']:
+                process_btn = st.button("🎬 START BACKGROUND PROCESSING", type="primary", use_container_width=True)
             else:
-                st.markdown(
-                    f"<div class='glass-card'><h4>Video Creation Configuration</h4>"
-                    f"<p>📊 Frames: <b>{len(saved_frames)}</b> | 🎞️ FPS: <b>{fps:.1f}</b></p>"
-                    f"<p>📐 {width}×{height} | ⚙️ Codec: H.264 (mp4) CRF18</p></div>",
-                    unsafe_allow_html=True,
-                )
-                progress_vid = st.progress(0, text="Encoding...")
-                try:
-                    if saved_frame_paths:
-                        success, message, frames_written = create_video_from_frame_files(
-                            frames_dir, output_path, fps, width, height, crf=18, preset="ultrafast"
-                        )
-                    else:
-                        success, message, frames_written = create_video_from_frames(
-                            saved_frames, output_path, fps, width, height, crf=18, preset="ultrafast"
-                        )
-                    progress_vid.progress(1.0, text="Done")
-                    video_creation_status.success(message if success else f"❌ {message}")
-                    video_created = success
-                except Exception as e:
-                    progress_vid.progress(1.0, text="Failed")
-                    video_creation_status.error(f"❌ Exception: {e}")
-                    video_created = False
-
-            # ======================= ENHANCED VIDEO COMPARISON & ANALYSIS ====================== #
-            try:
-                original_size_mb = os.path.getsize(input_path) / (1024.0 * 1024.0)
-                optimized_size_mb = os.path.getsize(output_path) / (1024.0 * 1024.0) if video_created and os.path.exists(output_path) else 0
+                process_btn = False
+                st.button("🔄 Processing...", disabled=True, use_container_width=True)
+        
+        with col2:
+            if bg_status['active']:
+                if st.button("⏹️ STOP PROCESSING", type="secondary", use_container_width=True):
+                    stop_background_processing()
+                    st.rerun()
+            else:
+                st.button("⏹️ Stop", disabled=True, use_container_width=True)
+        
+        with col3:
+            if bg_status['active']:
+                st.success("✅ Processing in background...")
+            elif bg_status['result']:
+                st.info("✅ Processing completed!")
+            else:
+                st.info("⏸️ Ready to process")
+        
+        # Start background processing
+        if process_btn:
+            success, message = start_background_processing(
+                input_path, st.session_state.thresholds, fps, width, height, total_frames
+            )
+            if success:
+                st.success("🚀 Background processing started! You can now navigate to other modules.")
+                st.rerun()
+            else:
+                st.error(f"Failed to start processing: {message}")
+        
+        # Show current processing status
+        if bg_status['active'] or bg_status['progress']:
+            st.markdown("---")
+            st.markdown("### 🔄 Processing Status")
+            
+            if bg_status['progress']:
+                progress = bg_status['progress']
                 
-                # Show enhanced video comparison with integrated mathematical analysis
-                show_enhanced_video_comparison(
-                    input_path, output_path if video_created else None, 
-                    original_size_mb, optimized_size_mb, 
-                    total_frames, total_saved
-                )
+                # Progress bar
+                progress_pct = progress['processed'] / max(progress['total_estimated'], 1)
+                st.progress(progress_pct, text=f"Processed {progress['processed']}/{progress['total_estimated']} frames")
                 
-            except Exception as e:
-                st.error(f"Error in video comparison: {e}")
-                
-                # Fallback simple comparison
+                # Current frame info
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.markdown("### 📹 Original Video")
-                    st.video(input_path)
+                    st.markdown(f"""
+                    <div class='glass-card'>
+                        <h4>📊 Current Frame</h4>
+                        <p><strong>Frame:</strong> {progress['frame_num']}/{progress['total_frames']}</p>
+                        <p><strong>Category:</strong> {get_category_badge(progress['current_category'])}</p>
+                        <p><strong>Detected:</strong> {progress['current_detected']}</p>
+                        <p><strong>Confidence:</strong> {progress['current_confidence']:.1%}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
                 with col2:
-                    st.markdown("### 🧠 AURA Optimized")
-                    if video_created and os.path.exists(output_path):
-                        st.video(output_path)
-                    else:
-                        st.error("❌ Optimized video not available")
-
-            # ======================= DETAILED ANALYSIS ====================== #
-            st.markdown("---")
-            st.markdown("### 📊 Performance Analysis")
+                    counts = progress['counts']
+                    saved = counts["Critical"] + counts["Important"] + counts["Normal"]
+                    reduction = (1 - saved / max(progress['processed'], 1)) * 100
+                    
+                    st.markdown(f"""
+                    <div class='glass-card'>
+                        <h4>📈 Live Metrics</h4>
+                        <p><strong>Processed:</strong> {progress['processed']}</p>
+                        <p><strong>Saved:</strong> {saved}</p>
+                        <p><strong>Duplicates:</strong> {counts['Duplicates']}</p>
+                        <p><strong>Reduction:</strong> {reduction:.1f}%</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+        # Show results if processing is complete
+        if bg_status['result']:
+            result = bg_status['result']
             
-            # Create metrics in a more organized layout
-            analysis_cols = st.columns(3)
-            
-            with analysis_cols[0]:
-                st.markdown("""
-                <div class='glass-card'>
-                    <h4>🎯 Frame Analysis</h4>
-                </div>
-                """, unsafe_allow_html=True)
+            if result.get('completed', False):
+                st.markdown("---")
+                st.markdown("### ✅ Processing Complete!")
                 
-                st.metric("Total Processed", processed, f"{processed/elapsed_time:.1f} fps")
-                st.metric("Frames Saved", saved, f"{(saved/processed)*100:.1f}%")
-                st.metric("Duplicates Removed", counts["Duplicates"], f"{(counts['Duplicates']/processed)*100:.1f}%")
-            
-            with analysis_cols[1]:
-                st.markdown("""
-                <div class='glass-card'>
-                    <h4>💾 Storage Impact</h4>
-                </div>
-                """, unsafe_allow_html=True)
+                counts = result['counts']
+                processed = result['processed']
+                elapsed_time = result['elapsed_time']
+                saved = counts["Critical"] + counts["Important"] + counts["Normal"]
+                reduction = result['reduction']
+                lifespan_extension = result['lifespan_extension']
                 
-                st.metric("Write Reduction", f"{reduction:.1f}%", "Target: 60-70%")
-                st.metric("Lifespan Extension", f"{lifespan_extension:.1f}x", "Target: 3-3.5x")
-                if 'storage_saved_gb' in locals():
+                # Results metrics
+                fm = st.columns(5)
+                fm[0].metric("Total Processed", processed, f"{processed/elapsed_time:.1f} fps")
+                fm[1].metric("Frames Saved", saved, f"{saved/processed*100:.1f}%")
+                fm[2].metric("Duplicates", counts["Duplicates"], f"{counts['Duplicates']/processed*100:.1f}%")
+                fm[3].metric("Write Reduction", f"{reduction:.1f}%", "Lower is better")
+                fm[4].metric("Lifespan Extension", f"{lifespan_extension:.1f}x", "Higher is better")
+                
+                # Video results
+                if result['video_created']:
+                    st.markdown("---")
+                    st.markdown("### 🎬 Video Results")
+                    st.success(result['video_message'])
+                    
+                    # Enhanced video comparison
+                    try:
+                        original_size_mb = os.path.getsize(result['original_path']) / (1024.0 * 1024.0)
+                        optimized_size_mb = os.path.getsize(result['output_path']) / (1024.0 * 1024.0)
+                        
+                        show_enhanced_video_comparison(
+                            result['original_path'], result['output_path'],
+                            original_size_mb, optimized_size_mb,
+                            total_frames, saved
+                        )
+                    except Exception as e:
+                        # Fallback simple comparison
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown("### 📹 Original Video")
+                            st.video(result['original_path'])
+                        with col2:
+                            st.markdown("### 🧠 AURA Optimized")
+                            if os.path.exists(result['output_path']):
+                                st.video(result['output_path'])
+                            else:
+                                st.error("❌ Optimized video not available")
+                
+                # Detailed analysis
+                st.markdown("---")
+                st.markdown("### 📊 Performance Analysis")
+                
+                analysis_cols = st.columns(3)
+                
+                with analysis_cols[0]:
+                    st.markdown("""
+                    <div class='glass-card'>
+                        <h4>🎯 Frame Analysis</h4>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    st.metric("Total Processed", processed, f"{processed/elapsed_time:.1f} fps")
+                    st.metric("Frames Saved", saved, f"{(saved/processed)*100:.1f}%")
+                    st.metric("Duplicates Removed", counts["Duplicates"], f"{(counts['Duplicates']/processed)*100:.1f}%")
+                
+                with analysis_cols[1]:
+                    st.markdown("""
+                    <div class='glass-card'>
+                        <h4>💾 Storage Impact</h4>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    st.metric("Write Reduction", f"{reduction:.1f}%", "Target: 60-70%")
+                    st.metric("Lifespan Extension", f"{lifespan_extension:.1f}x", "Target: 3-3.5x")
+                    storage_saved_gb = (processed - saved) * 3.5 / 1000
                     st.metric("Storage Saved", f"{storage_saved_gb:.2f} GB")
-            
-            with analysis_cols[2]:
-                st.markdown("""
-                <div class='glass-card'>
-                    <h4>🏷️ Classification</h4>
-                </div>
-                """, unsafe_allow_html=True)
                 
-                st.metric("Critical Frames", counts["Critical"], "🔴 Full quality")
-                st.metric("Important Frames", counts["Important"], "🟡 70% quality") 
-                st.metric("Normal Frames", counts["Normal"], "🟢 50% quality")
+                with analysis_cols[2]:
+                    st.markdown("""
+                    <div class='glass-card'>
+                        <h4>🏷️ Classification</h4>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    st.metric("Critical Frames", counts["Critical"], "🔴 Full quality")
+                    st.metric("Important Frames", counts["Important"], "🟡 70% quality") 
+                    st.metric("Normal Frames", counts["Normal"], "🟢 50% quality")
+                    
+                # Clear results button
+                if st.button("🗑️ Clear Results", type="secondary"):
+                    st.session_state.bg_processor_result = None
+                    st.rerun()
+            
+            elif 'error' in result:
+                st.error(f"❌ Processing failed: {result['error']}")
+                if st.button("🗑️ Clear Error", type="secondary"):
+                    st.session_state.bg_processor_result = None
+                    st.rerun()
 
 # ============================================================================ #
 # TAB 2: IMAGE ANALYSIS

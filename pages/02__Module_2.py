@@ -13,6 +13,7 @@ from module2_helpers import (
     run_simulated_prediction,
     get_smart_metrics_info
 )
+from global_status import show_global_processing_status
 import pandas as pd
 import numpy as np
 import time
@@ -24,6 +25,9 @@ st.set_page_config(
 )
 apply_custom_css()
 show_hero()
+
+# Show Module 1 processing status in sidebar
+show_global_processing_status()
 
 st.markdown(
     '<div class="glass-card"><h3>❤️‍🩹 Module 2: Predictive Health Engine</h3><p>This <strong>real-time simulation</strong> shows how AURA continuously monitors S.M.A.R.T. metrics and uses an LSTM neural network to predict storage failure <strong>weeks before</strong> it happens. Watch the health metrics change over time!</p></div>',

@@ -5,6 +5,7 @@ Navigate between AURA Module 1 (Data Manager) and Module 3 (Security Layer)
 
 import streamlit as st
 from ui_components import apply_custom_css
+from global_status import show_compact_status, get_processing_summary
 
 # PAGE CONFIG
 st.set_page_config(
@@ -27,6 +28,9 @@ st.markdown("""
 
 st.markdown("---")
 
+# BACKGROUND PROCESSING STATUS
+show_compact_status()
+
 # MODULE SELECTION
 st.markdown("### Select AURA Module")
 
@@ -46,9 +50,12 @@ with row1_col1:
     </div>
     """, unsafe_allow_html=True)
 
-    # Navigation link instead of st.switch_page to avoid session init error in some Streamlit versions
+    # Show processing status for Module 1
+    if 'processing_active' in st.session_state and st.session_state.processing_active:
+        st.info("🔄 Processing in background...")
+    
+    # Navigation link
     if st.button("Launch Module 1", key="launch_m1", use_container_width=True):
-        # Use switch_page for proper navigation
         st.switch_page("pages/01__Module_1.py")
 
 with row1_col2:
